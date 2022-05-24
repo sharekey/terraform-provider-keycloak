@@ -33,7 +33,7 @@ type PasswordCredentials struct {
 	Temporary bool   `json:"temporary"`
 }
 
-func (keycloakClient *KeycloakClient) NewUser(ctx context.Context, user *User) error {
+func (keycloakClient *KeycloakClient) NewUser(ctx context.Context, user *User, credentialReset bool) error {
 	newUser := User{
 		Id:            user.Id,
 		RealmId:       user.RealmId,
@@ -51,6 +51,13 @@ func (keycloakClient *KeycloakClient) NewUser(ctx context.Context, user *User) e
 	}
 
 	user.Id = getIdFromLocationHeader(location)
+
+	if credentialReset {
+		err := keycloakClient.put(ctx, fmt.Sprintf("/realms/%s/users/%s/execute-actions-email", user.RealmId, user.Id), []string{"UPDATE_PASSWORD", "UPDATE_PROFILE", "VERIFY_EMAIL"})
+		if err != nil {
+			return err
+		}
+	}
 
 	for _, federatedIdentity := range user.FederatedIdentities {
 		_, _, err := keycloakClient.post(ctx, fmt.Sprintf("/realms/%s/users/%s/federated-identity/%s", user.RealmId, user.Id, federatedIdentity.IdentityProvider), federatedIdentity)

@@ -103,6 +103,11 @@ func resourceKeycloakUser() *schema.Resource {
 					},
 				},
 			},
+			"credential_reset": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
 			"enabled": {
 				Type:     schema.TypeBool,
 				Optional: true,
@@ -189,7 +194,9 @@ func resourceKeycloakUserCreate(ctx context.Context, data *schema.ResourceData, 
 
 	user := mapFromDataToUser(data)
 
-	err := keycloakClient.NewUser(ctx, user)
+	credentialReset := data.Get("credential_reset").(bool)
+
+	err := keycloakClient.NewUser(ctx, user, credentialReset)
 	if err != nil {
 		return diag.FromErr(err)
 	}
