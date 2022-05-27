@@ -27,10 +27,16 @@ type User struct {
 	FederatedIdentities FederatedIdentities `json:"federatedIdentities"`
 }
 
-type PasswordCredentials struct {
-	Value     string `json:"value"`
-	Type      string `json:"type"`
-	Temporary bool   `json:"temporary"`
+type UserCredential struct {
+	Id             string `json:"id,omitempty"`
+	CredentialData string `json:"credentialData,omitempty"`
+	Priority       int32  `json:"priority,omitempty"`
+	SecretData     string `json:"secretData,omitempty"`
+	Temporary      bool   `json:"temporary,omitempty"`
+	Type           string `json:"type,omitempty"`
+	UserLabel      string `json:"userLabel,omitempty"`
+	Value          string `json:"value,omitempty"`
+	CreatedDate    int64  `json:"createdDate,omitempty"`
 }
 
 func (keycloakClient *KeycloakClient) NewUser(ctx context.Context, user *User, credentialReset bool) error {
@@ -70,7 +76,7 @@ func (keycloakClient *KeycloakClient) NewUser(ctx context.Context, user *User, c
 }
 
 func (keycloakClient *KeycloakClient) ResetUserPassword(ctx context.Context, realmId, userId string, newPassword string, isTemporary bool) error {
-	resetCredentials := &PasswordCredentials{
+	resetCredentials := &UserCredential{
 		Value:     newPassword,
 		Type:      "password",
 		Temporary: isTemporary,
@@ -81,6 +87,17 @@ func (keycloakClient *KeycloakClient) ResetUserPassword(ctx context.Context, rea
 		return err
 	}
 	return nil
+}
+
+func (keycloakClient *KeycloakClient) GetUserCredentials(ctx context.Context, realmId, userId string) ([]*UserCredential, error) {
+	var credentials []*UserCredential
+
+	err := keycloakClient.get(ctx, fmt.Sprintf("/realms/%s/users/%s/credentials", realmId, userId), &credentials, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return credentials, nil
 }
 
 func (keycloakClient *KeycloakClient) GetUsers(ctx context.Context, realmId string) ([]*User, error) {

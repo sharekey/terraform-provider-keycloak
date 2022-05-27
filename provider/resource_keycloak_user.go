@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/mrparkers/terraform-provider-keycloak/keycloak"
-	"strings"
 )
 
 const MULTIVALUE_ATTRIBUTE_SEPARATOR = "##"
@@ -107,6 +110,60 @@ func resourceKeycloakUser() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Default:  false,
+			},
+			"credentials": {
+				Type:     schema.TypeList,
+				Computed: true,
+				Optional: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"id": {
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+						},
+						"priority": {
+							Type:     schema.TypeInt,
+							Computed: true,
+							Optional: true,
+						},
+						"secret_data": {
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+						},
+						"type": {
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+						},
+						"user_label": {
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+						},
+						"temporary": {
+							Type:     schema.TypeBool,
+							Computed: true,
+							Optional: true,
+						},
+						"value": {
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+						},
+						"created_date": {
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+						},
+						"credential_data": {
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+						},
+					},
+				},
 			},
 			"enabled": {
 				Type:     schema.TypeBool,
@@ -230,7 +287,36 @@ func resourceKeycloakUserRead(ctx context.Context, data *schema.ResourceData, me
 
 	mapFromUserToData(data, user)
 
+	userCredentials, err := keycloakClient.GetUserCredentials(ctx, realmId, id)
+	if err != nil {
+		return handleNotFoundError(ctx, err, data)
+	}
+
+	mapFromCredentialsToData(userCredentials, data)
+
 	return nil
+}
+
+func mapFromCredentialsToData(credentials []*keycloak.UserCredential, data *schema.ResourceData) {
+	var userCredentials []interface{}
+
+	for _, credential := range credentials {
+		createdDate := time.Unix(0, credential.CreatedDate*int64(time.Millisecond))
+		userCredential := map[string]interface{}{
+			"id":              credential.Id,
+			"credential_data": credential.CredentialData,
+			"priority":        credential.Priority,
+			"secret_data":     credential.SecretData,
+			"type":            credential.Type,
+			"user_label":      credential.UserLabel,
+			"temporary":       credential.Temporary,
+			"value":           credential.Value,
+			"created_date":    createdDate.Format(time.RFC3339),
+		}
+		userCredentials = append(userCredentials, userCredential)
+	}
+
+	data.Set("credentials", userCredentials)
 }
 
 func resourceKeycloakUserUpdate(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
